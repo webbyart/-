@@ -1,0 +1,7 @@
+{
+  "name": "แบบฟอร์มขอยืมอุปกรณ์",
+  "description": "An application to register and manage the loaning of company equipment.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบฟอร์มขอยืมอุปกรณ์</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <main id="app-container">
+        <header>
+            <img src="https://storage.googleapis.com/aip-dev-source-public/sumino-aapico-logo.png" alt="SUMINO AAPICO Logo" class="company-logo">
+            <h1>แบบฟอร์มขอยืมอุปกรณ์</h1>
+        </header>
+
+        <!-- Step 1: Loan Request Form -->
+        <div id="form-step">
+            <p>กรุณากรอกข้อมูลเพื่อขอยืมอุปกรณ์ของบริษัท</p>
+            <form id="loan-form">
+                <section class="form-section">
+                    <h2>1. ข้อมูลพนักงานและทรัพย์สิน</h2>
+                    <div class="form-group">
+                        <label for="employeeSelect">รหัสพนักงาน</label>
+                        <div class="employee-selector-container">
+                            <select id="employeeSelect" name="employeeId" required>
+                                <option value="" disabled selected>-- เลือกพนักงาน --</option>
+                            </select>
+                            <img id="employeeImage" alt="รูปพนักงาน" class="employee-image-preview hidden">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="employeeName">ชื่อพนักงาน</label>
+                        <input type="text" id="employeeName" name="employeeName" readonly required>
+                    </div>
+                    <div class="form-group">
+                        <label for="assetId">รหัสทรัพย์สิน / Serial Number</label>
+                        <input type="text" id="assetId" name="assetId" required>
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <h2>2. อุปกรณ์เสริม</h2>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="accessories" value="charger"> ที่ชาร์จ</label>
+                        <label><input type="checkbox" name="accessories" value="mouse"> เมาส์</label>
+                        <label><input type="checkbox" name="accessories" value="bag"> กระเป๋า</label>
+                        <label><input type="checkbox" name="accessories" value="keyboard"> คีย์บอร์ด</label>
+                    </div>
+                    <div class="form-group">
+                        <label for="otherAccessories">อื่นๆ (โปรดระบุ)</label>
+                        <input type="text" id="otherAccessories" name="otherAccessories">
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <h2>3. รายละเอียดการยืม</h2>
+                    <div class="form-group">
+                        <label for="purpose">วัตถุประสงค์การยืม</label>
+                        <textarea id="purpose" name="purpose" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="startDate">วันที่และเวลายืม</label>
+                        <input type="datetime-local" id="startDate" name="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="returnDate">วันที่และเวลาคืน (ที่คาดไว้)</label>
+                        <input type="datetime-local" id="returnDate" name="returnDate" required>
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <h2>4. รูปถ่ายอุปกรณ์</h2>
+                    <p>กรุณาถ่ายรูปอุปกรณ์ให้ครบทุกมุม</p>
+                    <div class="photo-upload-grid">
+                        <div class="photo-upload-item">
+                            <label for="photoFront">ด้านหน้า</label>
+                            <input type="file" id="photoFront" name="photoFront" accept="image/*" capture="environment" class="photo-input">
+                            <img id="previewFront" class="photo-preview" alt="รูปด้านหน้า">
+                        </div>
+                        <div class="photo-upload-item">
+                            <label for="photoBack">ด้านหลัง</label>
+                            <input type="file" id="photoBack" name="photoBack" accept="image/*" capture="environment" class="photo-input">
+                            <img id="previewBack" class="photo-preview" alt="รูปด้านหลัง">
+                        </div>
+                        <div class="photo-upload-item">
+                            <label for="photoLeft">ด้านซ้าย</label>
+                            <input type="file" id="photoLeft" name="photoLeft" accept="image/*" capture="environment" class="photo-input">
+                            <img id="previewLeft" class="photo-preview" alt="รูปด้านซ้าย">
+                        </div>
+                        <div class="photo-upload-item">
+                            <label for="photoRight">ด้านขวา</label>
+                            <input type="file" id="photoRight" name="photoRight" accept="image/*" capture="environment" class="photo-input">
+                            <img id="previewRight" class="photo-preview" alt="รูปด้านขวา">
+                        </div>
+                        <div class="photo-upload-item">
+                            <label for="photoAccessories">อุปกรณ์เสริม</label>
+                            <input type="file" id="photoAccessories" name="photoAccessories" accept="image/*" capture="environment" class="photo-input">
+                            <img id="previewAccessories" class="photo-preview" alt="รูปอุปกรณ์เสริม">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <h2>5. ลายเซ็นผู้ยืม</h2>
+                    <div class="signature-pad-container">
+                        <canvas id="signature-pad-borrower"></canvas>
+                    </div>
+                    <button type="button" id="clear-signature-borrower" class="secondary-button">ล้าง</button>
+                </section>
+
+                <div class="submission-area">
+                    <button type="submit" class="primary-button">ส่งคำขอยืม</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Step 2: Supervisor Approval -->
+        <div id="supervisor-step" class="hidden">
+            <section class="form-section">
+                <h2>สำหรับผู้บังคับบัญชาอนุมัติ</h2>
+                <div id="summary-for-supervisor" class="summary-view"></div>
+                <h3>ลายเซ็นผู้บังคับบัญชา</h3>
+                <div class="signature-pad-container">
+                    <canvas id="signature-pad-supervisor"></canvas>
+                </div>
+                <button type="button" id="clear-signature-supervisor" class="secondary-button">ล้าง</button>
+                <div class="submission-area">
+                    <button type="button" id="approve-button" class="primary-button">อนุมัติ</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Step 3: IT Verification -->
+        <div id="it-step" class="hidden">
+            <section class="form-section">
+                <h2>สำหรับเจ้าหน้าที่ IT ตรวจสอบ</h2>
+                <div id="summary-for-it" class="summary-view"></div>
+                <h3>ลายเซ็นเจ้าหน้าที่ IT</h3>
+                <div class="signature-pad-container">
+                    <canvas id="signature-pad-it"></canvas>
+                </div>
+                <button type="button" id="clear-signature-it" class="secondary-button">ล้าง</button>
+                <div class="submission-area">
+                    <button type="button" id="verify-button" class="primary-button">ตรวจสอบและยืนยัน</button>
+                </div>
+            </section>
+        </div>
+        
+        <!-- Step 4: Final Summary & Export -->
+        <div id="summary-step" class="hidden">
+            <section class="form-section">
+                <h2>การขอยืมเสร็จสมบูรณ์</h2>
+                <p>ข้อมูลการขอยืมได้รับการอนุมัติและตรวจสอบเรียบร้อยแล้ว</p>
+                <div id="export-content">
+                    <!-- Content for PDF export will be generated here -->
+                </div>
+                <div class="submission-area">
+                    <button type="button" id="export-pdf-button" class="primary-button">ส่งออกเป็น PDF</button>
+                    <button type="button" id="new-request-button" class="secondary-button">สร้างคำขอใหม่</button>
+                </div>
+            </section>
+        </div>
+
+        <div id="loading-overlay" class="hidden">
+            <div class="spinner"></div>
+            <p>กำลังดำเนินการ...</p>
+        </div>
+
+    </main>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>
