@@ -44,7 +44,7 @@ header h1 {
 }
 
 .company-logo {
-    max-width: 250px;
+    max-width: 200px;
     margin-bottom: 1rem;
 }
 
@@ -393,6 +393,25 @@ select:focus {
 .history-item p {
     margin: 0.25rem 0;
 }
+
+/* Notification Control Styles */
+#notification-control {
+    background-color: #e7f3ff;
+    border: 1px solid #b3d7ff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+}
+#notification-control p {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+#notification-status {
+    margin-top: 1rem;
+    font-weight: 500;
+    min-height: 1.5em; /* Prevent layout shift */
+}
+
 
 @media (max-width: 600px) {
     body {

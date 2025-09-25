@@ -13,7 +13,10 @@
   "imports": {
     "jspdf": "https://aistudiocdn.com/jspdf@^3.0.3",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.57.4",
-    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/messaging": "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.3.0/"
   }
 }
 </script>
@@ -24,6 +27,17 @@
             <img src="https://storage.googleapis.com/aip-dev-source-public/sumino-aapico-logo.png" alt="SUMINO AAPICO Logo" class="company-logo">
             <h1>แบบฟอร์มขอยืมอุปกรณ์</h1>
         </header>
+
+        <!-- Notification Controls -->
+        <section id="notification-control" class="form-section">
+            <h2>การแจ้งเตือน</h2>
+            <p>เปิดใช้งานการแจ้งเตือนเพื่อรับข่าวสารล่าสุดเกี่ยวกับคำขอยืมของคุณ</p>
+            <div class="submission-area">
+                <button type="button" id="enable-notifications-button" class="primary-button">เปิดใช้งานการแจ้งเตือน</button>
+            </div>
+            <p id="notification-status"></p>
+        </section>
+
 
         <!-- Step 1: Loan Request Form -->
         <div id="form-step">
@@ -195,5 +209,16 @@
 
     </main>
     <script type="module" src="index.tsx"></script>
+    <script>
+        // Register Firebase Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/firebase-messaging-sw.js')
+                .then(function(registration) {
+                    console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(function(err) {
+                    console.log('Service Worker registration failed:', err);
+                });
+        }
+    </script>
 </body>
 </html>

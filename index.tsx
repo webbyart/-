@@ -5,17 +5,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { initializeApp } from 'firebase/app';
+import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+
+
+// --- Firebase Configuration ---
+// ACTION REQUIRED: Replace with your Firebase project's configuration object.
+// You can find this in your Firebase project settings.
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+// ACTION REQUIRED: Replace with your VAPID key from Firebase project settings > Cloud Messaging.
+const vapidKey = 'YOUR_VAPID_PUBLIC_KEY';
+
+// Initialize Firebase
+const firebaseApp = initializeApp(firebaseConfig);
+const messaging = getMessaging(firebaseApp);
+
 
 // --- Supabase Configuration ---
-// IMPORTANT: Replace with your Supabase Project URL and Anon Key from your Supabase dashboard
-const supabaseUrl = 'YOUR_SUPABASE_URL'; 
-const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://hmotqayykzuhqyqvfdwj.supabase.co'; 
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtb3RxYXl5a3p1aHF5cXZmZHdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3ODA4OTYsImV4cCI6MjA3NDM1Njg5Nn0.4YfuxKdoid8okFshvv3Y77BW8Dvna9BOBsTr8FKd_1o';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 
 // --- GLOBAL STATE ---
 let loanData: Record<string, any> = {};
-// const loanDatabase: Record<string, any>[] = []; // In-memory database is now replaced by Supabase
+let fcmToken: string | null = null;
 
 // --- EMPLOYEE DATA ---
 const employees = [
@@ -75,6 +96,60 @@ const viewHistoryButton = $<HTMLButtonElement>('#view-history-button');
 const historyModal = $<HTMLDivElement>('#history-modal');
 const closeHistoryModalButton = $<HTMLButtonElement>('#close-history-modal');
 const historyContent = $<HTMLDivElement>('#history-content');
+
+// Notification Elements
+const enableNotificationsButton = $<HTMLButtonElement>('#enable-notifications-button');
+const notificationStatus = $<HTMLParagraphElement>('#notification-status');
+
+
+// --- NOTIFICATION LOGIC ---
+enableNotificationsButton.addEventListener('click', async () => {
+    notificationStatus.textContent = 'กำลังขออนุญาต...';
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            notificationStatus.textContent = 'การแจ้งเตือนเปิดใช้งานแล้ว กำลังรับ Token...';
+            notificationStatus.style.color = 'var(--success-color)';
+            
+            const currentToken = await getToken(messaging, { vapidKey });
+            if (currentToken) {
+                fcmToken = currentToken;
+                console.log('FCM Token:', fcmToken);
+                notificationStatus.textContent = 'การแจ้งเตือนเปิดใช้งานสำเร็จ!';
+                // In a real app, you would send this token to your server to store it against the user's profile.
+                // e.g., await supabase.from('users').update({ fcm_token: fcmToken }).eq('id', userId);
+            } else {
+                notificationStatus.textContent = 'ไม่สามารถรับ Token ได้ โปรดลองอีกครั้ง';
+                notificationStatus.style.color = 'var(--danger-color)';
+            }
+        } else if (permission === 'denied') {
+            notificationStatus.textContent = 'การแจ้งเตือนถูกปฏิเสธ';
+            notificationStatus.style.color = 'var(--danger-color)';
+        } else {
+            notificationStatus.textContent = 'การขออนุญาตถูกปิด';
+            notificationStatus.style.color = 'var(--secondary-color)';
+        }
+    } catch (error) {
+        console.error('An error occurred while getting notification permission.', error);
+        notificationStatus.textContent = 'เกิดข้อผิดพลาดในการเปิดใช้งานการแจ้งเตือน';
+        notificationStatus.style.color = 'var(--danger-color)';
+    }
+});
+
+// Handle incoming messages when the app is in the foreground
+onMessage(messaging, (payload) => {
+    console.log('Message received. ', payload);
+    alert(`การแจ้งเตือนใหม่:\n${payload.notification?.title}\n${payload.notification?.body}`);
+});
+
+function simulateSendingNotification(details: { title: string; body: string; recipient: string }) {
+    console.log(`%c[NOTIFICATION SIMULATION]`, 'color: #4CAF50; font-weight: bold;', 
+        `\n  Recipient: ${details.recipient}` +
+        `\n  Title: ${details.title}` +
+        `\n  Body: ${details.body}` +
+        `\n\n  (In a real app, a backend service would now send a push notification using the recipient's FCM token.)`
+    );
+}
 
 
 // --- SIGNATURE PAD FACTORY ---
@@ -239,6 +314,13 @@ loanForm.addEventListener('submit', async (event) => {
         }));
 
     await Promise.all(photoPromises);
+    
+    // --- Simulate Notification Trigger ---
+    simulateSendingNotification({
+        recipient: 'Supervisors & IT Department',
+        title: 'มีคำขอยืมอุปกรณ์ใหม่',
+        body: `พนักงาน ${loanData.employeeName} ได้ส่งคำขอยืมอุปกรณ์ (รหัส: ${loanData.assetId})`,
+    });
 
     $('#summary-for-supervisor').innerHTML = createSummaryHTML(loanData);
     
@@ -292,6 +374,14 @@ verifyButton.addEventListener('click', async () => {
             .insert([supabaseData]);
 
         if (error) throw error;
+        
+        // --- Simulate Notification Trigger ---
+        simulateSendingNotification({
+            recipient: `Borrower (${loanData.employeeName})`,
+            title: 'คำขอยืมอุปกรณ์ของคุณได้รับการอนุมัติแล้ว',
+            body: `คำขอยืมอุปกรณ์ (รหัส: ${loanData.assetId}) ของคุณได้รับการตรวจสอบและอนุมัติเรียบร้อยแล้ว`,
+        });
+
 
         // Populate final summary for export
         const exportContent = $('#export-content');
