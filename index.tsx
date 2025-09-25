@@ -2,13 +2,20 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+import { createClient } from '@supabase/supabase-js';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
-// --- TYPE DECLARATIONS for CDN libraries ---
-declare const jspdf: any;
-declare const html2canvas: any;
+// --- Supabase Configuration ---
+// IMPORTANT: Replace with your Supabase Project URL and Anon Key from your Supabase dashboard
+const supabaseUrl = 'YOUR_SUPABASE_URL'; 
+const supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 
 // --- GLOBAL STATE ---
 let loanData: Record<string, any> = {};
+// const loanDatabase: Record<string, any>[] = []; // In-memory database is now replaced by Supabase
 
 // --- EMPLOYEE DATA ---
 const employees = [
@@ -62,6 +69,13 @@ const approveButton = $<HTMLButtonElement>('#approve-button');
 const verifyButton = $<HTMLButtonElement>('#verify-button');
 const exportPdfButton = $<HTMLButtonElement>('#export-pdf-button');
 const newRequestButton = $<HTMLButtonElement>('#new-request-button');
+
+// History Modal Elements
+const viewHistoryButton = $<HTMLButtonElement>('#view-history-button');
+const historyModal = $<HTMLDivElement>('#history-modal');
+const closeHistoryModalButton = $<HTMLButtonElement>('#close-history-modal');
+const historyContent = $<HTMLDivElement>('#history-content');
+
 
 // --- SIGNATURE PAD FACTORY ---
 function createSignaturePad(canvasId: string, clearButtonId: string) {
@@ -153,10 +167,12 @@ employeeSelect.addEventListener('change', () => {
         employeeNameInput.value = selectedEmployee.name_th;
         employeeImage.src = selectedEmployee.image;
         employeeImage.classList.remove('hidden');
+        viewHistoryButton.disabled = false;
     } else {
         employeeNameInput.value = '';
         employeeImage.src = '';
         employeeImage.classList.add('hidden');
+        viewHistoryButton.disabled = true;
     }
 });
 
@@ -247,42 +263,72 @@ approveButton.addEventListener('click', () => {
     window.scrollTo(0, 0);
 });
 
-verifyButton.addEventListener('click', () => {
+verifyButton.addEventListener('click', async () => {
     if (itPad.isEmpty()) {
         alert('กรุณาลงลายเซ็นเจ้าหน้าที่ IT');
         return;
     }
     loanData.signatures.it = itPad.getDataURL();
-    
-    // Populate final summary for export
-    const exportContent = $('#export-content');
-    exportContent.innerHTML = `
-        ${createSummaryHTML(loanData)}
-        <h3>ลายเซ็น</h3>
-        <div class="summary-signatures">
-            <div class="signature-item">
-                <img src="${loanData.signatures.borrower}" alt="ลายเซ็นผู้ยืม">
-                <p>ผู้ยืม</p>
-            </div>
-            <div class="signature-item">
-                <img src="${loanData.signatures.supervisor}" alt="ลายเซ็นผู้บังคับบัญชา">
-                <p>ผู้บังคับบัญชา</p>
-            </div>
-            <div class="signature-item">
-                <img src="${loanData.signatures.it}" alt="ลายเซ็นเจ้าหน้าที่ IT">
-                <p>เจ้าหน้าที่ IT</p>
-            </div>
-        </div>
-    `;
+    loadingOverlay.classList.remove('hidden');
 
-    itStep.classList.add('hidden');
-    summaryStep.classList.remove('hidden');
-    window.scrollTo(0, 0);
+    // Prepare data for Supabase
+    const supabaseData = {
+        employeeId: loanData.employeeId,
+        employeeName: loanData.employeeName,
+        assetId: loanData.assetId,
+        accessories: loanData.accessories,
+        otherAccessories: loanData.otherAccessories,
+        purpose: loanData.purpose,
+        startDate: loanData.startDate,
+        returnDate: loanData.returnDate,
+        photos: loanData.photos, // Assumes JSONB column
+        signatures: loanData.signatures, // Assumes JSONB column
+        timestamp: new Date().toISOString(),
+    };
+    
+    try {
+        const { error } = await supabase
+            .from('loan_requests')
+            .insert([supabaseData]);
+
+        if (error) throw error;
+
+        // Populate final summary for export
+        const exportContent = $('#export-content');
+        exportContent.innerHTML = `
+            ${createSummaryHTML(loanData)}
+            <h3>ลายเซ็น</h3>
+            <div class="summary-signatures">
+                <div class="signature-item">
+                    <img src="${loanData.signatures.borrower}" alt="ลายเซ็นผู้ยืม">
+                    <p>ผู้ยืม</p>
+                </div>
+                <div class="signature-item">
+                    <img src="${loanData.signatures.supervisor}" alt="ลายเซ็นผู้บังคับบัญชา">
+                    <p>ผู้บังคับบัญชา</p>
+                </div>
+                <div class="signature-item">
+                    <img src="${loanData.signatures.it}" alt="ลายเซ็นเจ้าหน้าที่ IT">
+                    <p>เจ้าหน้าที่ IT</p>
+                </div>
+            </div>
+        `;
+
+        itStep.classList.add('hidden');
+        summaryStep.classList.remove('hidden');
+        window.scrollTo(0, 0);
+
+    } catch (error) {
+        console.error("Error saving to Supabase:", error);
+        alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + (error as Error).message);
+    } finally {
+        loadingOverlay.classList.add('hidden');
+    }
 });
+
 
 exportPdfButton.addEventListener('click', async () => {
     loadingOverlay.classList.remove('hidden');
-    const { jsPDF } = jspdf;
     const content = $('#export-content');
     
     try {
@@ -328,11 +374,66 @@ newRequestButton.addEventListener('click', () => {
 
     document.querySelectorAll('.photo-preview').forEach(img => (img as HTMLImageElement).src = '');
     employeeImage.classList.add('hidden');
+    viewHistoryButton.disabled = true;
     
     summaryStep.classList.add('hidden');
     formStep.classList.remove('hidden');
     window.scrollTo(0, 0);
 });
+
+// --- HISTORY MODAL LOGIC ---
+async function displayLoanHistory(employeeId: string) {
+    loadingOverlay.classList.remove('hidden');
+    try {
+        const { data: records, error } = await supabase
+            .from('loan_requests')
+            .select('*')
+            .eq('employeeId', employeeId)
+            .order('timestamp', { ascending: false });
+
+        if (error) throw error;
+
+        if (!records || records.length === 0) {
+            historyContent.innerHTML = '<p>ไม่พบประวัติการยืมสำหรับพนักงานท่านนี้</p>';
+            return;
+        }
+
+        historyContent.innerHTML = records.map((record: any) => `
+            <div class="history-item">
+                <p><strong>รหัสทรัพย์สิน:</strong> ${record.assetId}</p>
+                <p><strong>วันที่ยืม:</strong> ${new Date(record.startDate).toLocaleString()}</p>
+                <p><strong>วันที่คืน:</strong> ${new Date(record.returnDate).toLocaleString()}</p>
+                <p><strong>วัตถุประสงค์:</strong> ${record.purpose}</p>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error("Error fetching history from Supabase:", error);
+        historyContent.innerHTML = `<p style="color: red;">เกิดข้อผิดพลาดในการดึงข้อมูลประวัติ: ${(error as Error).message}</p>`;
+    } finally {
+        loadingOverlay.classList.add('hidden');
+    }
+}
+
+viewHistoryButton.addEventListener('click', async () => {
+    const selectedEmployeeId = employeeSelect.value;
+    if (selectedEmployeeId) {
+        historyContent.innerHTML = '<p>กำลังโหลด...</p>';
+        historyModal.classList.remove('hidden');
+        await displayLoanHistory(selectedEmployeeId);
+    }
+});
+
+closeHistoryModalButton.addEventListener('click', () => {
+    historyModal.classList.add('hidden');
+});
+
+historyModal.addEventListener('click', (event) => {
+    if (event.target === historyModal) {
+        historyModal.classList.add('hidden');
+    }
+});
+
 
 // --- INITIALIZATION ---
 populateEmployeeSelector();
